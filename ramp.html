@@ -1,0 +1,599 @@
+<title>Ramp Rise &amp; Run</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: a friendly side-view picture with a little ball mascot on the left; on the right you tell it the rise
+   and the angle, and it answers with the run. A cheat-sheet table of run per angle sits underneath. */
+:root {
+  --bg: #FFFFFF;
+  --panel: #FFFFFF;
+  --ink: #111111;
+  --muted: #616161;
+  --rule: #DADADA;
+  --accent: #111111;
+  --accent-text: #111111;
+  --on-accent: #FFFFFF;
+  --sky: #EDEDED;
+  --grass: #BDBDBD;
+  --sun: #FFFFFF;
+  --blush: #B5B5B5;
+  --soft: #F4F4F4;
+  --ring: rgba(17, 17, 17, 0.18);
+  --good: #111111;
+  --warn: #111111;
+  --hot: #111111;
+  --display: "Fredoka", "Nunito", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --gutter: 16px;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.5;
+  padding-inline: var(--gutter);
+  padding-block: 24px 48px;
+}
+.wrap { max-width: 1120px; margin-inline: auto; display: flex; flex-direction: column; gap: 20px; }
+
+header { display: flex; flex-direction: column; gap: 6px; }
+h1 {
+  margin: 0; font-family: var(--display); font-weight: 700;
+  font-size: clamp(2.2rem, 7vw, 3.4rem); line-height: 1.02; letter-spacing: -0.01em; text-wrap: balance;
+}
+header p { margin: 0; color: var(--muted); max-width: 56ch; font-size: 1.05rem; }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 880px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+.panel { background: var(--panel); border: 2px solid var(--rule); border-radius: 24px; min-width: 0; }
+
+/* Stage */
+.stage { overflow: hidden; }
+.stage svg { display: block; width: 100%; height: auto; user-select: none; -webkit-user-select: none; }
+.stagefoot { border-top: 2px dashed var(--rule); padding: 14px var(--gutter) 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.rollout { margin: 0; flex: 1 1 220px; min-width: 0; font-size: 14px; color: var(--muted); }
+.btn {
+  background: var(--accent); color: var(--on-accent); border: 0; border-radius: 999px;
+  padding: 11px 22px; min-height: 44px; font: 600 16px var(--display); cursor: pointer;
+}
+.btn:hover { filter: brightness(1.06); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.6; cursor: default; }
+button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* SVG parts */
+.ground { fill: var(--grass); }
+.tri { fill: var(--sky); }
+.edge { stroke: var(--ink); stroke-width: 2; stroke-linecap: round; opacity: 0.55; }
+.rampline { stroke: var(--accent); stroke-width: 6; stroke-linecap: round; }
+.arc { stroke: var(--accent-text); stroke-width: 2; fill: none; stroke-linecap: round; }
+.dim { stroke: var(--muted); stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-dasharray: 1 5; }
+.dimsolid { stroke: var(--muted); stroke-width: 1.5; fill: none; stroke-linecap: round; }
+.t { font: 600 15px var(--display); fill: var(--ink); }
+.k { font: 700 11px var(--body); letter-spacing: 0.1em; fill: var(--muted); text-transform: uppercase; }
+.sheet { font: 700 11px var(--body); letter-spacing: 0.14em; fill: var(--muted); text-transform: uppercase; }
+.hit { fill: transparent; }
+.ring { fill: none; stroke: var(--accent); stroke-opacity: 0.35; stroke-width: 7; }
+.knob { fill: var(--panel); stroke: var(--accent); stroke-width: 5; }
+.grip { stroke: var(--accent); stroke-width: 2; stroke-linecap: round; }
+#handleG { cursor: ew-resize; touch-action: none; outline: none; }
+#handleG:focus-visible .ring { stroke: var(--ink); stroke-opacity: 1; stroke-width: 3; }
+body.dragging, body.dragging #handleG { cursor: grabbing; }
+.pillbg { fill: var(--accent); }
+.pilltxt { fill: var(--on-accent); font: 600 15px var(--display); }
+.ballc { fill: var(--sun); stroke: var(--ink); stroke-width: 2.5; }
+.eye { fill: var(--ink); }
+.cheek { fill: var(--blush); opacity: 0.75; }
+.mouth { stroke: var(--ink); stroke-width: 2; fill: none; stroke-linecap: round; }
+
+/* Right side */
+.side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.controls { padding: 18px var(--gutter) var(--gutter); display: flex; flex-direction: column; gap: 18px; }
+.lab { font: 700 12px var(--body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.field > label { font: 600 17px var(--display); }
+.row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.inp {
+  flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0;
+  background: var(--soft); border: 2px solid var(--rule); border-radius: 16px; padding: 0 14px;
+}
+.inp:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px var(--ring); }
+.inp input {
+  flex: 1; min-width: 0; width: 100%; border: 0; background: transparent; color: var(--ink);
+  font: 600 24px var(--display); padding: 8px 0; outline: none; font-variant-numeric: tabular-nums;
+}
+.inp .suf { color: var(--muted); font: 600 16px var(--display); flex: none; }
+.round {
+  flex: none; width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--rule);
+  background: var(--panel); color: var(--ink); font: 600 22px/1 var(--display); cursor: pointer;
+}
+.round:hover { border-color: var(--accent); color: var(--accent-text); }
+input[type="range"] { width: 100%; accent-color: var(--accent); height: 28px; margin: 0; }
+.seg { display: inline-flex; border: 2px solid var(--rule); border-radius: 999px; overflow: hidden; align-self: flex-start; max-width: 100%; }
+.seg button {
+  font: 600 14px var(--display); background: transparent; color: var(--muted); border: 0;
+  padding: 7px 14px; min-height: 38px; cursor: pointer;
+}
+.seg button + button { border-left: 2px solid var(--rule); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  font: 600 14px var(--display); border: 2px solid var(--rule); background: transparent; color: var(--ink);
+  border-radius: 999px; padding: 6px 14px; min-height: 36px; cursor: pointer;
+}
+.chip:hover { border-color: var(--accent); color: var(--accent-text); }
+.linkbtn { font: 600 14px var(--body); background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; padding: 4px 0; align-self: flex-start; }
+.linkbtn:hover { color: var(--ink); }
+
+/* Answer */
+.answer { padding: 18px var(--gutter) var(--gutter); display: flex; flex-direction: column; gap: 14px; background: var(--sky); border-color: transparent; }
+.lead { margin: 0; font-size: 16px; color: var(--ink); }
+.big { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.big .num { font: 700 clamp(3rem, 9vw, 4.4rem)/1 var(--display); color: var(--accent-text); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.big .unit { font: 600 1.6rem var(--display); color: var(--ink); }
+.mini { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.mini div { background: var(--panel); border-radius: 14px; padding: 8px 10px; min-width: 0; }
+.mini b { display: block; font: 700 11px var(--body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.mini span { display: block; font: 600 17px var(--display); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.bubble {
+  position: relative; background: var(--panel); border-radius: 18px; padding: 10px 14px; --st: var(--good);
+  margin-top: 4px;
+}
+.bubble::before {
+  content: ""; position: absolute; top: -8px; left: 28px; width: 16px; height: 16px; background: var(--panel);
+  transform: rotate(45deg); border-radius: 3px;
+}
+.bubble.warn { --st: var(--warn); }
+.bubble.hot { --st: var(--hot); }
+.bubble p { margin: 0; position: relative; }
+.bubble strong { font: 600 18px var(--display); color: var(--st); display: block; }
+.bubble span { color: var(--muted); font-size: 14.5px; }
+
+/* Table */
+.tablepanel { padding: 18px var(--gutter) var(--gutter); display: flex; flex-direction: column; gap: 6px; }
+h2 { margin: 0; font: 700 clamp(1.4rem, 4vw, 1.9rem)/1.15 var(--display); text-wrap: balance; }
+.sub { margin: 0 0 8px; color: var(--muted); font-size: 15px; }
+.tscroll { overflow-x: auto; }
+table { width: 100%; min-width: 500px; border-collapse: separate; border-spacing: 0; font: 600 16px var(--display); font-variant-numeric: tabular-nums; }
+th {
+  font: 700 11.5px var(--body); letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted);
+  text-align: right; padding: 8px 12px; border-bottom: 2px solid var(--rule); white-space: nowrap;
+}
+td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+tbody tr { cursor: pointer; }
+tbody tr:hover td, tbody tr.cur td { background: var(--soft); }
+tr.cur td:first-child { box-shadow: inset 4px 0 0 var(--accent); }
+.rowbtn { font: inherit; background: none; border: 0; color: var(--accent-text); cursor: pointer; padding: 0; text-align: left; }
+.tag {
+  font: 700 10.5px var(--body); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted);
+  background: var(--soft); padding: 2px 8px; border-radius: 999px; margin-left: 8px;
+}
+
+.notes { color: var(--muted); font-size: 14px; display: flex; flex-direction: column; gap: 6px; max-width: 78ch; }
+.notes p { margin: 0; }
+@media (max-width: 440px) {
+  .inp { padding: 0 10px; }
+  .inp input { font-size: 22px; }
+  .round { width: 40px; height: 40px; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Ramp Rise &amp; Run</h1>
+  </header>
+
+  <div class="grid">
+    <section class="panel stage" aria-label="Ramp drawing">
+      <svg id="stage" viewBox="0 0 760 392" role="img" aria-label="Ramp side view">
+        <text class="sheet" x="18" y="26">Side view. Drag the dot sideways.</text>
+        <rect class="ground" x="-20" y="322" width="800" height="14" rx="7"/>
+        <polygon id="tri" class="tri" points="0,0 0,0 0,0"/>
+        <line id="hedge" class="edge" x1="0" y1="0" x2="0" y2="0"/>
+        <line id="vedge" class="edge" x1="0" y1="0" x2="0" y2="0"/>
+        <path id="dimRun" class="dimsolid" d=""/>
+        <path id="dimRise" class="dimsolid" d=""/>
+        <text id="runKey" class="k" text-anchor="end">Run</text>
+        <text id="runVal" class="t"></text>
+        <text id="riseKey" class="k"></text>
+        <text id="riseVal" class="t"></text>
+        <path id="arc" class="arc" d=""/>
+        <line id="rampline" class="rampline" x1="0" y1="0" x2="0" y2="0"/>
+        <g id="ball">
+          <circle class="ballc" r="14"/>
+          <circle class="eye" cx="-5" cy="-2" r="2.2"/>
+          <circle class="eye" cx="5" cy="-2" r="2.2"/>
+          <circle class="cheek" cx="-9" cy="3.5" r="2.8"/>
+          <circle class="cheek" cx="9" cy="3.5" r="2.8"/>
+          <path class="mouth" d="M -3.5 4 Q 0 8 3.5 4"/>
+        </g>
+        <g id="pill" pointer-events="none">
+          <rect id="pillBg" class="pillbg" rx="11" height="24"/>
+          <text id="pillTxt" class="pilltxt" text-anchor="middle"></text>
+        </g>
+        <g id="handleG" tabindex="0" role="slider" aria-label="Ramp angle in degrees" aria-valuemin="0.5" aria-valuemax="85" aria-valuenow="4.76">
+          <circle class="hit" r="28"/>
+          <circle class="ring" r="17"/>
+          <circle class="knob" r="10"/>
+          <line class="grip" x1="-3" y1="-3" x2="-3" y2="3"/>
+          <line class="grip" x1="3" y1="-3" x2="3" y2="3"/>
+        </g>
+      </svg>
+      <div class="stagefoot">
+        <button id="rollBtn" class="btn" type="button">Let it roll!</button>
+        <p id="rollOut" class="rollout" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <div class="side">
+      <section class="panel controls" aria-label="Your ramp">
+        <div class="field">
+          <span class="lab" id="unitLab">Units</span>
+          <div class="seg" role="group" aria-labelledby="unitLab" id="units">
+            <button type="button" data-u="mm" aria-pressed="false">mm</button>
+            <button type="button" data-u="cm" aria-pressed="true">cm</button>
+            <button type="button" data-u="m" aria-pressed="false">m</button>
+            <button type="button" data-u="in" aria-pressed="false">in</button>
+            <button type="button" data-u="ft" aria-pressed="false">ft</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="rise">How tall is the ramp?</label>
+          <div class="row">
+            <button class="round" type="button" id="riseDown" aria-label="Lower the rise">&minus;</button>
+            <div class="inp"><input id="rise" type="text" inputmode="decimal" autocomplete="off"><span class="suf" id="sufRise">cm</span></div>
+            <button class="round" type="button" id="riseUp" aria-label="Raise the rise">+</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="angle">How steep?</label>
+          <div class="inp"><input id="angle" type="text" inputmode="decimal" autocomplete="off"><span class="suf">degrees</span></div>
+          <input id="slide" type="range" min="1" max="60" step="0.5" value="4.76" aria-label="Angle slider">
+          <div class="chips" role="group" aria-label="Quick slopes" id="presets">
+            <button class="chip" type="button" data-ratio="20">1:20</button>
+            <button class="chip" type="button" data-ratio="12">1:12</button>
+            <button class="chip" type="button" data-ratio="8">1:8</button>
+            <button class="chip" type="button" data-deg="15">15°</button>
+            <button class="chip" type="button" data-deg="30">30°</button>
+            <button class="chip" type="button" data-deg="45">45°</button>
+          </div>
+        </div>
+
+        <button class="linkbtn" type="button" id="reset">Start over</button>
+      </section>
+
+      <section class="panel answer" aria-live="polite" aria-label="Answer">
+        <p class="lead" id="lead"></p>
+        <div class="big"><span class="num" id="ansNum"></span><span class="unit" id="ansUnit"></span></div>
+        <div class="mini">
+          <div><b>Ramp length</b><span id="ansLen"></span></div>
+          <div><b>Grade</b><span id="ansGrade"></span></div>
+          <div><b>Ratio</b><span id="ansRatio"></span></div>
+        </div>
+        <div id="bubble" class="bubble good">
+          <p><strong id="vWord"></strong><span id="vText"></span></p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <section class="panel tablepanel" aria-labelledby="tblTitle">
+    <h2 id="tblTitle">Cheat sheet: run needed for a <span id="tblRise"></span> rise</h2>
+    <p class="sub">Click a row to try that angle on the drawing.</p>
+    <div class="tscroll">
+      <table>
+        <thead>
+          <tr><th scope="col">Angle</th><th scope="col">Grade</th><th scope="col">Ratio</th><th scope="col">Run needed</th><th scope="col">Ramp length</th></tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var UNITS = {
+    mm: { f: 1,     d: 0, step: 10 },
+    cm: { f: 10,    d: 1, step: 1 },
+    m:  { f: 1000,  d: 3, step: 0.05 },
+    in: { f: 25.4,  d: 2, step: 1 },
+    ft: { f: 304.8, d: 3, step: 0.1 }
+  };
+  var MAXMM = 200000;
+  var MINDEG = 0.5, MAXDEG = 85;
+  var SV = { x0: 60, y0: 322, aw: 560, ah: 240 };
+  var R = 14, P0 = 0.1;
+  var DEFAULT = { rise: 300, angle: Math.atan(1 / 12) * 180 / Math.PI };
+  var PROMPT = 'Press the button to time me rolling from the top to the bottom.';
+
+  var state = { rise: DEFAULT.rise, angle: DEFAULT.angle, unit: 'cm' };
+  var drag = null;
+  var rollAnim = null;
+  var ballP = P0, ballRot = 0;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var rad = function (d) { return d * Math.PI / 180; };
+  var deg = function (r) { return r * 180 / Math.PI; };
+  var clamp = function (v, a, b) { return Math.min(b, Math.max(a, v)); };
+  var r1 = function (n) { return +n.toFixed(1); };
+  var fmt = function (x, d) { return String(parseFloat((+x).toFixed(d))); };
+  var U = function () { return UNITS[state.unit]; };
+  var fmtNum = function (mm) { return fmt(mm / U().f, U().d); };
+  var fmtLen = function (mm) { return fmtNum(mm) + ' ' + state.unit; };
+  var runMm = function () { return Math.min(MAXMM * 10, state.rise / Math.tan(rad(state.angle))); };
+
+  /* ---------- verdict ---------- */
+  function verdict() {
+    var n = 1 / Math.tan(rad(state.angle)), d = state.angle, e = 1e-6;
+    if (n >= 20 - e) return ['good', 'Super gentle!', 'At 1:20 or flatter, the ADA counts it as a walkway rather than a ramp, so no handrails are needed.'];
+    if (n >= 12 - e) return ['good', 'Wheelchair friendly!', 'It stays at or under the 1:12 limit.'];
+    if (n >= 8 - e)  return ['warn', 'Getting steep!', 'Too steep for wheelchairs, but fine for carts, bikes and driveways.'];
+    if (d <= 20)     return ['warn', 'Whoa, steep!', 'Add grip strips or cleats so feet and wheels hold.'];
+    if (d <= 45)     return ['hot', 'Hold on tight!', 'Stairs or a switchback ramp would be easier to use.'];
+    return ['hot', 'Wheeeee!', 'Past 45° this is a wall to scramble up, or a skate ramp.'];
+  }
+
+  /* ---------- drawing ---------- */
+  function geom() {
+    var run = runMm();
+    var s = drag ? drag.s : Math.min(SV.aw / run, SV.ah / state.rise);
+    var A = { x: SV.x0, y: SV.y0 };
+    var B = { x: SV.x0 + run * s, y: SV.y0 };
+    var C = { x: B.x, y: SV.y0 - state.rise * s };
+    return { s: s, run: run, A: A, B: B, C: C };
+  }
+  function ln(id, a, b) {
+    var el = $(id);
+    el.setAttribute('x1', r1(a.x)); el.setAttribute('y1', r1(a.y));
+    el.setAttribute('x2', r1(b.x)); el.setAttribute('y2', r1(b.y));
+  }
+  function at(id, x, y) { var el = $(id); el.setAttribute('x', r1(x)); el.setAttribute('y', r1(y)); }
+
+  function placeBall() {
+    var g = geom(), t = rad(state.angle);
+    var x = g.C.x + (g.A.x - g.C.x) * ballP - Math.sin(t) * (R + 2);
+    var y = g.C.y + (g.A.y - g.C.y) * ballP - Math.cos(t) * (R + 2);
+    $('ball').setAttribute('transform', 'translate(' + r1(x) + ' ' + r1(y) + ') rotate(' + r1(ballRot) + ')');
+  }
+
+  function drawStage() {
+    var g = geom(), A = g.A, B = g.B, C = g.C;
+    var d = state.angle, t = rad(d), sn = Math.sin(t), cs = Math.cos(t);
+
+    $('tri').setAttribute('points', [A, B, C].map(function (p) { return r1(p.x) + ',' + r1(p.y); }).join(' '));
+    ln('hedge', A, B); ln('vedge', B, C); ln('rampline', A, C);
+
+    var ar = Math.min(46, Math.max(18, (B.x - A.x) * 0.7));
+    $('arc').setAttribute('d', 'M ' + r1(A.x + ar) + ' ' + r1(A.y) + ' A ' + ar + ' ' + ar + ' 0 0 0 ' + r1(A.x + ar * cs) + ' ' + r1(A.y - ar * sn));
+
+    var yd = A.y + 36;
+    $('dimRun').setAttribute('d',
+      'M ' + r1(A.x) + ' ' + yd + ' L ' + r1(B.x) + ' ' + yd +
+      ' M ' + r1(A.x) + ' ' + (yd - 6) + ' L ' + r1(A.x) + ' ' + (yd + 6) +
+      ' M ' + r1(B.x) + ' ' + (yd - 6) + ' L ' + r1(B.x) + ' ' + (yd + 6));
+    var mx = (A.x + B.x) / 2;
+    at('runKey', mx - 6, yd + 22);
+    at('runVal', mx + 2, yd + 22);
+    $('runVal').textContent = fmtLen(g.run);
+
+    var xd = B.x + 30, my = (A.y + C.y) / 2;
+    $('dimRise').setAttribute('d',
+      'M ' + r1(xd) + ' ' + r1(A.y) + ' L ' + r1(xd) + ' ' + r1(C.y) +
+      ' M ' + r1(xd - 6) + ' ' + r1(A.y) + ' L ' + r1(xd + 6) + ' ' + r1(A.y) +
+      ' M ' + r1(xd - 6) + ' ' + r1(C.y) + ' L ' + r1(xd + 6) + ' ' + r1(C.y));
+    $('riseKey').textContent = 'Rise';
+    at('riseKey', xd + 14, my - 3);
+    at('riseVal', xd + 14, my + 14);
+    $('riseVal').textContent = fmtLen(state.rise);
+
+    $('handleG').setAttribute('transform', 'translate(' + r1(C.x) + ' ' + r1(C.y) + ')');
+    var tag = fmt(d, 2) + '°', w = tag.length * 9 + 22;
+    $('pillBg').setAttribute('x', r1(C.x - w / 2)); $('pillBg').setAttribute('y', r1(C.y - 52));
+    $('pillBg').setAttribute('width', r1(w));
+    at('pillTxt', C.x, C.y - 35);
+    $('pillTxt').textContent = tag;
+    $('handleG').setAttribute('aria-valuenow', fmt(d, 2));
+
+    placeBall();
+    $('stage').setAttribute('aria-label',
+      'Ramp ' + fmtLen(state.rise) + ' tall at ' + fmt(d, 2) + ' degrees needs a run of ' + fmtLen(g.run));
+  }
+
+  /* ---------- table ---------- */
+  var ROWS = [
+    { deg: 2 },
+    { deg: deg(Math.atan(1 / 20)), tag: '1:20 no handrail' },
+    { deg: deg(Math.atan(1 / 12)), tag: '1:12 wheelchair limit' },
+    { deg: 5 }, { deg: 8 }, { deg: 10 }, { deg: 15 }, { deg: 20 },
+    { deg: 25 }, { deg: 30 }, { deg: 35 }, { deg: 40 }, { deg: 45 }, { deg: 60 }
+  ];
+  (function buildTable() {
+    var tb = $('tbody');
+    ROWS.forEach(function (row) {
+      var tr = document.createElement('tr');
+      var c0 = document.createElement('td');
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'rowbtn';
+      b.textContent = fmt(row.deg, 2) + '°';
+      c0.appendChild(b);
+      if (row.tag) { var s = document.createElement('span'); s.className = 'tag'; s.textContent = row.tag; c0.appendChild(s); }
+      tr.appendChild(c0);
+      row.cells = [];
+      for (var i = 0; i < 4; i++) { var td = document.createElement('td'); tr.appendChild(td); row.cells.push(td); }
+      row.tr = tr;
+      tr.addEventListener('click', function () { state.angle = row.deg; stopBall(); render(); });
+      tb.appendChild(tr);
+    });
+  })();
+
+  function drawTable() {
+    $('tblRise').textContent = fmtLen(state.rise);
+    ROWS.forEach(function (row) {
+      var t = rad(row.deg), tn = Math.tan(t);
+      row.cells[0].textContent = fmt(tn * 100, 1) + '%';
+      row.cells[1].textContent = '1:' + fmt(1 / tn, 1);
+      row.cells[2].textContent = fmtLen(state.rise / tn);
+      row.cells[3].textContent = fmtLen(state.rise / Math.sin(t));
+      var cur = Math.abs(state.angle - row.deg) < 0.05;
+      row.tr.className = cur ? 'cur' : '';
+      if (cur) row.tr.setAttribute('aria-current', 'true'); else row.tr.removeAttribute('aria-current');
+    });
+  }
+
+  /* ---------- render ---------- */
+  function render(skip) {
+    var u = U(), run = runMm(), hyp = Math.hypot(run, state.rise);
+    if (skip !== 'rise') $('rise').value = fmt(state.rise / u.f, u.d);
+    if (skip !== 'angle') $('angle').value = fmt(state.angle, 2);
+    $('slide').value = clamp(state.angle, 1, 60);
+    $('sufRise').textContent = state.unit;
+
+    $('lead').textContent = 'For a ' + fmtLen(state.rise) + ' rise at ' + fmt(state.angle, 2) + '°, the run should be';
+    $('ansNum').textContent = fmtNum(run);
+    $('ansUnit').textContent = state.unit;
+    $('ansLen').textContent = fmtLen(hyp);
+    $('ansGrade').textContent = fmt(Math.tan(rad(state.angle)) * 100, 1) + '%';
+    $('ansRatio').textContent = '1:' + fmt(1 / Math.tan(rad(state.angle)), 1);
+
+    var v = verdict();
+    $('bubble').className = 'bubble ' + v[0];
+    $('vWord').textContent = v[1];
+    $('vText').textContent = v[2];
+
+    drawStage();
+    drawTable();
+  }
+
+  /* ---------- ball ---------- */
+  function stopBall() {
+    if (rollAnim) { cancelAnimationFrame(rollAnim); rollAnim = null; }
+    ballP = P0; ballRot = 0;
+    $('rollOut').textContent = PROMPT;
+    $('rollBtn').disabled = false;
+    placeBall();
+  }
+  function startRoll() {
+    stopBall();
+    var t = rad(state.angle), g = geom();
+    var L = Math.hypot(g.run, state.rise) / 1000 * (1 - P0);
+    var a = (5 / 7) * 9.81 * Math.sin(t);
+    var T = Math.sqrt(2 * L / a), V = Math.sqrt(2 * a * L);
+    var dur = clamp(T, 0.8, 6), speed = T / dur;
+    var note = speed > 1.05 ? ' (Animation sped up ×' + fmt(speed, 1) + '.)' : (speed < 0.95 ? ' (Animation slowed down.)' : '');
+    var result = 'Rolled ' + fmt(L, 2) + ' m in ' + fmt(T, 2) + ' s and hit ' + fmt(V, 2) + ' m/s (' + fmt(V * 3.6, 1) + ' km/h) at the bottom.' + note;
+    var pxTotal = Math.hypot(g.B.x - g.A.x, g.A.y - g.C.y) * (1 - P0);
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      ballP = 1; ballRot = -deg(pxTotal / R); placeBall(); $('rollOut').textContent = result; return;
+    }
+    $('rollBtn').disabled = true;
+    $('rollOut').textContent = 'Wheeee!';
+    var t0 = performance.now();
+    (function step(now) {
+      var k = Math.min(1, (now - t0) / 1000 / dur), q = k * k;
+      ballP = P0 + (1 - P0) * q;
+      ballRot = -deg(pxTotal * q / R);
+      placeBall();
+      if (k < 1) { rollAnim = requestAnimationFrame(step); }
+      else { rollAnim = null; $('rollBtn').disabled = false; $('rollOut').textContent = result; }
+    })(t0);
+  }
+  $('rollBtn').addEventListener('click', startRoll);
+
+  /* ---------- inputs ---------- */
+  function setRise(v) {
+    if (!isFinite(v) || v <= 0) return false;
+    state.rise = clamp(v * U().f, 1, MAXMM); return true;
+  }
+  function setAngle(v) {
+    if (!isFinite(v) || v <= 0) return false;
+    state.angle = clamp(v, MINDEG, MAXDEG); return true;
+  }
+  var num = function (el) { return parseFloat(el.value.replace(',', '.')); };
+
+  $('rise').addEventListener('input', function () { if (setRise(num($('rise')))) { stopBall(); render('rise'); } });
+  $('angle').addEventListener('input', function () { if (setAngle(num($('angle')))) { stopBall(); render('angle'); } });
+  $('rise').addEventListener('blur', function () { render(); });
+  $('angle').addEventListener('blur', function () { render(); });
+  $('rise').addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    e.preventDefault();
+    var st = U().step * (e.shiftKey ? 10 : 1) * (e.key === 'ArrowUp' ? 1 : -1);
+    if (setRise(+((num($('rise')) || 0) + st).toFixed(4))) { stopBall(); render(); }
+  });
+  $('angle').addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    e.preventDefault();
+    var st = 0.5 * (e.shiftKey ? 10 : 1) * (e.key === 'ArrowUp' ? 1 : -1);
+    if (setAngle(+((num($('angle')) || 0) + st).toFixed(4))) { stopBall(); render(); }
+  });
+  $('slide').addEventListener('input', function () { state.angle = parseFloat($('slide').value); stopBall(); render(); });
+  $('riseUp').addEventListener('click', function () { setRise(state.rise / U().f + U().step); stopBall(); render(); });
+  $('riseDown').addEventListener('click', function () { setRise(state.rise / U().f - U().step); stopBall(); render(); });
+
+  $('units').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-u]'); if (!b) return;
+    state.unit = b.dataset.u;
+    Array.prototype.forEach.call($('units').children, function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+    render();
+  });
+  $('presets').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    state.angle = b.dataset.ratio ? deg(Math.atan(1 / parseFloat(b.dataset.ratio))) : parseFloat(b.dataset.deg);
+    stopBall(); render();
+  });
+  $('reset').addEventListener('click', function () {
+    state.rise = DEFAULT.rise; state.angle = DEFAULT.angle; stopBall(); render();
+  });
+
+  /* ---------- dragging the dot sideways: the rise stays, the angle follows ---------- */
+  var svg = $('stage'), handle = $('handleG');
+  function toSvg(e) {
+    var pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+  handle.addEventListener('pointerdown', function (e) {
+    stopBall();
+    drag = { s: geom().s };
+    try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+    document.body.classList.add('dragging');
+    e.preventDefault();
+  });
+  handle.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    var runPx = clamp(toSvg(e).x - SV.x0, 10, SV.aw);
+    var risePx = state.rise * drag.s;
+    state.angle = clamp(deg(Math.atan2(risePx, runPx)), MINDEG, MAXDEG);
+    render();
+  });
+  function endDrag() {
+    if (!drag) return;
+    drag = null;
+    document.body.classList.remove('dragging');
+    render();
+  }
+  handle.addEventListener('pointerup', endDrag);
+  handle.addEventListener('pointercancel', endDrag);
+  handle.addEventListener('keydown', function (e) {
+    var dir = (e.key === 'ArrowUp' || e.key === 'ArrowLeft') ? 1 : (e.key === 'ArrowDown' || e.key === 'ArrowRight') ? -1 : 0;
+    if (!dir) return;
+    e.preventDefault();
+    state.angle = clamp(state.angle + dir * (e.shiftKey ? 2.5 : 0.5), MINDEG, MAXDEG);
+    stopBall(); render();
+  });
+
+  $('rollOut').textContent = PROMPT;
+  render();
+})();
+</script>
